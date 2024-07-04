@@ -1,6 +1,7 @@
 #include "Particle.h"
 
 #include "BeaconScanner.h"
+#include "GPIO.h"
 #include "GPS.h"
 
 SerialLogHandler logHandler(115200, LOG_LEVEL_INFO);
@@ -9,6 +10,8 @@ SYSTEM_MODE(SEMI_AUTOMATIC);
 
 BeaconScanner scanner;
 GPS gps;
+GPIOmonitor gpio;
+
 const char* prepareJSON();
 
 void setup() {
@@ -17,6 +20,7 @@ void setup() {
 
     scanner.start();
     gps.start();
+    gpio.setup();
 
     Cellular.on();
     Particle.connect();
@@ -28,10 +32,13 @@ const unsigned long SERIAL_PERIOD = 5000;
 unsigned long lastSerial = 0;
 
 void loop() {
+    gpio.loop();
+
     if (millis() - lastSerial >= SERIAL_PERIOD) {
         lastSerial = millis();
         const char* json = prepareJSON();
-        Serial.println(json);
+        Log.print(json);
+        Log.print("\n---\n");
 
         if (Particle.connected()) {
             if (millis() - lastPublish >= PUBLISH_PERIOD) {
@@ -48,6 +55,7 @@ const char* prepareJSON() {
     json.beginObject();
     scanner.toJSON(&json);
     gps.toJSON(&json);
+    gpio.toJSON(&json);
     json.endObject();
     size_t size = std::min(json.bufferSize(), json.dataSize());
     json.buffer()[size] = '\0';

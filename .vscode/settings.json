@@ -3,7 +3,9 @@
     "C_Cpp.default.configurationProvider": "particle.particle-vscode-core",
     "files.associations": {
         "*.ino": "cpp",
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "sstream": "cpp",
+        "utility": "cpp"
     },
     "particle.targetDevice": "boron",
     "particle.firmwareVersion": "6.1.0",
