@@ -12,7 +12,8 @@ BeaconScanner scanner;
 GPS gps;
 GPIOmonitor gpio;
 
-const char* prepareJSON();
+const char* prepareReport();
+const char* prepareAlert(uint8_t alert);
 void systemToJSON(JSONWriter* json);
 
 void setup() {
@@ -31,15 +32,48 @@ const unsigned long PUBLISH_PERIOD = 300000;
 unsigned long lastPublish = 0;
 const unsigned long SERIAL_PERIOD = 5000;
 unsigned long lastSerial = 0;
+unsigned long lastAlert[3] = {0, 0, 0};
+const unsigned long ALERT_PERIOD = 60000;
 
 void loop() {
     gpio.loop();
 
+    if (Particle.connected()) {
+        uint8_t alert = gpio.alert();
+        if (alert != GPIOmonitor::ALERT_NONE) {
+            // Alert has been triggered
+
+            // Determine whether to publish alert
+            bool publish = false;
+            if ((alert & GPIOmonitor::ALERT_BILGEPUMP) &&
+                (millis() - lastAlert[0] >= ALERT_PERIOD)) {
+                lastAlert[0] = millis();
+                publish = true;
+            }
+            if ((alert & GPIOmonitor::ALERT_SHOREPOWER_LOST) &&
+                (millis() - lastAlert[1] >= ALERT_PERIOD)) {
+                lastAlert[1] = millis();
+                publish = true;
+            }
+            if ((alert & GPIOmonitor::ALERT_SHOREPOWER_RESTORED) &&
+                (millis() - lastAlert[2] >= ALERT_PERIOD)) {
+                lastAlert[2] = millis();
+                publish = true;
+            }
+            if (publish) {
+                const char* json = prepareAlert(alert);
+                Particle.publish("alert", json);
+            }
+        }
+    }
+
     if (millis() - lastSerial >= SERIAL_PERIOD) {
         lastSerial = millis();
-        const char* json = prepareJSON();
+        const char* json = prepareReport();
         Log.print(json);
         Log.print("\n---\n");
+
+        Log.info("Time since publish: %ld", millis() - lastPublish);
 
         if (Particle.connected()) {
             if (millis() - lastPublish >= PUBLISH_PERIOD) {
@@ -51,7 +85,13 @@ void loop() {
 }
 
 char jsonbuf[512];
-const char* prepareJSON() {
+const char* terminateJson(JSONBufferWriter& json) {
+    size_t size = std::min(json.bufferSize(), json.dataSize());
+    json.buffer()[size] = '\0';
+    return json.buffer();
+}
+
+const char* prepareReport() {
     JSONBufferWriter json(jsonbuf, sizeof(jsonbuf) - 1);
     json.beginObject();
     scanner.toJSON(&json);
@@ -59,9 +99,17 @@ const char* prepareJSON() {
     gpio.toJSON(&json);
     systemToJSON(&json);
     json.endObject();
-    size_t size = std::min(json.bufferSize(), json.dataSize());
-    json.buffer()[size] = '\0';
-    return json.buffer();
+    return terminateJson(json);
+}
+
+const char* prepareAlert(uint8_t alert) {
+    JSONBufferWriter json(jsonbuf, sizeof(jsonbuf) - 1);
+    json.beginObject();
+    json.name("alert").value(alert);
+    gpio.toJSON(&json);
+    systemToJSON(&json);
+    json.endObject();
+    return terminateJson(json);
 }
 
 int percent10(float f) {

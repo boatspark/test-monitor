@@ -14,7 +14,8 @@
 // Milliseconds for the debounce function
 #define DEBOUNCE_INTERVAL 100
 
-GPIOmonitor::GPIOmonitor() : _shorePowerCycles(0), _bilgePumpCycles(0), _bat1(0), _bat2(0) {}
+GPIOmonitor::GPIOmonitor()
+    : _shorePowerCycles(0), _bilgePumpCycles(0), _bat1(0), _bat2(0), _alert(ALERT_NONE) {}
 
 void GPIOmonitor::setup() {
     // this should be INPUT_PULLUP, but OLED Wing has pull-up on D3
@@ -30,8 +31,17 @@ void GPIOmonitor::setup() {
 void GPIOmonitor::loop() {
     _shorePower.update();
     _bilgePump.update();
-    if (_shorePower.fell()) _shorePowerCycles++;
-    if (_bilgePump.rose()) _bilgePumpCycles++;
+    if (_shorePower.rose()) {
+        _shorePowerCycles++;
+        _alert |= ALERT_SHOREPOWER_LOST;
+    }
+    if (_shorePower.fell()) {
+        _alert |= ALERT_SHOREPOWER_RESTORED;
+    }
+    if (_bilgePump.rose()) {
+        _bilgePumpCycles++;
+        _alert |= ALERT_BILGEPUMP;
+    }
     _bat1 = convertADCtoV100(analogRead(PIN_ADC_BAT1));
     _bat2 = convertADCtoV100(analogRead(PIN_ADC_BAT2));
 }
