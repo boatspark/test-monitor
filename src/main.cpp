@@ -32,8 +32,8 @@ const unsigned long PUBLISH_PERIOD = 300000;
 unsigned long lastPublish = 0;
 const unsigned long SERIAL_PERIOD = 5000;
 unsigned long lastSerial = 0;
-unsigned long lastAlert[3] = {0, 0, 0};
 const unsigned long ALERT_PERIOD = 60000;
+unsigned long lastAlert[3] = {-ALERT_PERIOD, -ALERT_PERIOD, -ALERT_PERIOD};
 
 bool checkAlert(uint8_t alert, GPIOmonitor::AlertState check, int index) {
     bool publish = false;
