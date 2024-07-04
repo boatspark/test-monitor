@@ -21,7 +21,9 @@ class GPIOmonitor {
 
    private:
     Debounce _shorePower;
+    int32_t _shorePowerCycles;
     Debounce _bilgePump;
+    int32_t _bilgePumpCycles;
     int32_t _bat1;
     int32_t _bat2;
 };

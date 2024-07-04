@@ -13,6 +13,7 @@ GPS gps;
 GPIOmonitor gpio;
 
 const char* prepareJSON();
+void systemToJSON(JSONWriter* json);
 
 void setup() {
     delay(2000);
@@ -56,8 +57,26 @@ const char* prepareJSON() {
     scanner.toJSON(&json);
     gps.toJSON(&json);
     gpio.toJSON(&json);
+    systemToJSON(&json);
     json.endObject();
     size_t size = std::min(json.bufferSize(), json.dataSize());
     json.buffer()[size] = '\0';
     return json.buffer();
+}
+
+int percent10(float f) {
+    if (f < 0.0) return -1;
+    return (int)(10.0f * f);
+}
+
+void systemToJSON(JSONWriter* json) {
+    json->name("sys");
+    json->beginObject();
+    json->name("ps").value(System.powerSource());
+    json->name("soc").value(percent10(System.batteryCharge()));
+    json->name("mem").value(System.freeMemory());
+    CellularSignal cs = Cellular.RSSI();
+    json->name("ss").value(percent10(cs.getStrength()));
+    json->name("sq").value(percent10(cs.getQuality()));
+    json->endObject();
 }
