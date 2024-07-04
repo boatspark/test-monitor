@@ -35,31 +35,27 @@ unsigned long lastSerial = 0;
 unsigned long lastAlert[3] = {0, 0, 0};
 const unsigned long ALERT_PERIOD = 60000;
 
+bool checkAlert(uint8_t alert, GPIOmonitor::AlertState check, int index) {
+    bool publish = false;
+    if ((alert & check) && (millis() - lastAlert[index] >= ALERT_PERIOD)) {
+        lastAlert[index] = millis();
+        publish = true;
+    }
+    return publish;
+}
+
 void loop() {
     gpio.loop();
 
     if (Particle.connected()) {
-        uint8_t alert = gpio.alert();
+        uint8_t alert = gpio.alert();  // this also resets alert status
         if (alert != GPIOmonitor::ALERT_NONE) {
             // Alert has been triggered
-
             // Determine whether to publish alert
             bool publish = false;
-            if ((alert & GPIOmonitor::ALERT_BILGEPUMP) &&
-                (millis() - lastAlert[0] >= ALERT_PERIOD)) {
-                lastAlert[0] = millis();
-                publish = true;
-            }
-            if ((alert & GPIOmonitor::ALERT_SHOREPOWER_LOST) &&
-                (millis() - lastAlert[1] >= ALERT_PERIOD)) {
-                lastAlert[1] = millis();
-                publish = true;
-            }
-            if ((alert & GPIOmonitor::ALERT_SHOREPOWER_RESTORED) &&
-                (millis() - lastAlert[2] >= ALERT_PERIOD)) {
-                lastAlert[2] = millis();
-                publish = true;
-            }
+            if (checkAlert(alert, GPIOmonitor::ALERT_BILGEPUMP, 0)) publish = true;
+            if (checkAlert(alert, GPIOmonitor::ALERT_SHOREPOWER_LOST, 1)) publish = true;
+            if (checkAlert(alert, GPIOmonitor::ALERT_SHOREPOWER_RESTORED, 2)) publish = true;
             if (publish) {
                 const char* json = prepareAlert(alert);
                 Particle.publish("alert", json);
