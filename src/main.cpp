@@ -1,10 +1,10 @@
 #include "Particle.h"
 
-#include "OledDisplay.h"
-
 #include "BeaconScanner.h"
 #include "GPIO.h"
 #include "GPS.h"
+#include "OledDisplay.h"
+#include "Timer.h"
 
 SerialLogHandler logHandler(115200, LOG_LEVEL_INFO);
 SYSTEM_THREAD(ENABLED);
@@ -36,13 +36,11 @@ void setup() {
     Particle.connect();
 }
 
-const unsigned long PUBLISH_PERIOD = 300000;
-unsigned long lastPublish = 0;
-const unsigned long SERIAL_PERIOD = 5000;
-unsigned long lastSerial = 0;
+MilliTimer publishTimer(300000);
+MilliTimer logTimer(5000);
+
 const unsigned long ALERT_PERIOD = 60000;
 unsigned long lastAlert[3] = {-ALERT_PERIOD, -ALERT_PERIOD, -ALERT_PERIOD};
-
 bool checkAlert(uint8_t alert, GPIOmonitor::AlertState check, int index) {
     bool publish = false;
     if ((alert & check) && (millis() - lastAlert[index] >= ALERT_PERIOD)) {
@@ -66,23 +64,20 @@ void loop() {
             if (checkAlert(alert, GPIOmonitor::ALERT_SHOREPOWER_RESTORED, 2)) publish = true;
             if (publish) {
                 const char* json = prepareAlert(alert);
-                Particle.publish("alert", json);
+                Particle.publish("boatspark/alert", json);
             }
         }
     }
 
-    if (millis() - lastSerial >= SERIAL_PERIOD) {
-        lastSerial = millis();
+    if (logTimer.timeout()) {
         const char* json = prepareReport();
         Log.print(json);
-        Log.print("\n---\n");
-
-        Log.info("Time since publish: %ld", millis() - lastPublish);
+        Log.print("\n");
+        Log.info("--- (%ld)\n", publishTimer.remaining());
 
         if (Particle.connected()) {
-            if (millis() - lastPublish >= PUBLISH_PERIOD) {
-                lastPublish = millis();
-                Particle.publish("monitor", json);
+            if (publishTimer.timeout()) {
+                Particle.publish("boatspark/monitor", json);
             }
         }
     }
