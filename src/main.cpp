@@ -1,5 +1,7 @@
 #include "Particle.h"
 
+#include "OledDisplay.h"
+
 #include "BeaconScanner.h"
 #include "GPIO.h"
 #include "GPS.h"
@@ -11,13 +13,19 @@ SYSTEM_MODE(SEMI_AUTOMATIC);
 BeaconScanner scanner;
 GPS gps;
 GPIOmonitor gpio;
+OledDisplay display;
 
 const char* prepareReport();
 const char* prepareAlert(uint8_t alert);
 void systemToJSON(JSONWriter* json);
 
 void setup() {
+    display.setup();
+    display.showSplash();
+    display.display();
     delay(2000);
+    display.clear(1);
+    display.display();
     Log.info("Setting up.");
 
     scanner.start();
